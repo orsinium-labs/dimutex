@@ -1,4 +1,4 @@
-from typing import Dict, Optional
+from typing import Callable, Dict, Optional
 import aiohttp
 from gcloud.aio.auth import Token
 from http import HTTPStatus
@@ -23,6 +23,7 @@ class GCS:
     token: Token
     emulator: bool
     ttl: timedelta
+    now: Callable[..., datetime]
 
     def __init__(
         self,
@@ -31,6 +32,7 @@ class GCS:
         api_url: Optional[str] = None,
         session: Optional[aiohttp.ClientSession] = None,
         token: Optional[Token] = None,
+        now: Optional[Callable[[], datetime]] = None,
         ttl: timedelta = timedelta(seconds=60),
     ) -> None:
         self.bucket = bucket
@@ -39,14 +41,17 @@ class GCS:
         self.api_url = api_url or DEFAULT_URL
         self.ttl = ttl
 
+        if now is None:
+            now = datetime.utcnow
+        self.now = now  # type: ignore
         if session is None:
             session = aiohttp.ClientSession(
                 connector=aiohttp.TCPConnector(ssl=not self.emulator),
                 timeout=10,
             )
+        self.session = session
         if token is None:
             token = Token(service_file=None, scopes=SCOPES, session=session)
-        self.session = session
         self.token = token
 
     async def _headers(self) -> Dict[str, str]:
@@ -68,8 +73,24 @@ class GCS:
         if resp.status == HTTPStatus.OK:
             return
         if resp.status == HTTPStatus.PRECONDITION_FAILED:
+            content = await resp.json()
+            expires = datetime.fromisoformat(content['metadata']['expires'])
+            if self.now() >= expires:
+                resp = await self._delete(generation=content['generation'])
+                resp.raise_for_status()
+                await self.acquire()
+                return
             raise AlreadyAcquiredError()
         resp.raise_for_status()
+
+    async def reacquire(self) -> None:
+        """Release (unlock) the mutex even if it is already locked.
+
+        Raises:
+            ClientResponseError
+        """
+        await self.release()
+        await self.acquire()
 
     async def release(self) -> None:
         """Release (unlock) the mutex
@@ -83,7 +104,7 @@ class GCS:
     async def _create(self) -> aiohttp.ClientResponse:
         metadata = {
             'name': self.name,
-            'expires': (datetime.utcnow() + self.ttl).isoformat(),
+            'expires': (self.now() + self.ttl).isoformat(),
         }
         body, content_type = encode_multipart_formdata([
             (
@@ -100,22 +121,25 @@ class GCS:
             'Accept': 'application/json',
             'Content-Length': '0',
             'Content-Type': content_type,
-            'x-goog-if-generation-match': '0',
         })
         return await self.session.post(
             url=f'{self.api_url}/upload/storage/v1/b/{self.bucket}/o',
             data=body,
-            params=dict(uploadType='multipart'),
+            params=dict(
+                uploadType='multipart',
+                ifGenerationMatch='0',
+            ),
             headers=headers,
         )
 
     async def _delete(self, generation: Optional[str] = None) -> aiohttp.ClientResponse:
-        headers = await self._headers()
+        params = {}
         if generation is not None:
-            headers['x-goog-if-generation-match'] = generation
+            params['ifGenerationMatch'] = generation
         return await self.session.delete(
             url=f'{self.api_url}/storage/v1/b/{self.bucket}/o/{quote(self.name)}',
-            headers=headers,
+            params=params,
+            headers=await self._headers(),
         )
 
     async def __aenter__(self) -> 'Token':
