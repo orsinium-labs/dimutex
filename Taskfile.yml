@@ -1,0 +1,92 @@
+# https://taskfile.dev
+
+version: '3'
+
+vars:
+  PYTHON: python3.9
+env:
+  FLIT_ROOT_INSTALL: "1"
+
+tasks:
+  install:base:
+    status:
+      - test -f .venvs/base/bin/flitenv
+    cmds:
+      - "{{.PYTHON}} -m venv .venvs/base"
+      - .venvs/base/bin/python3 -m pip install -U flitenv pip-tools
+  install:test:
+    sources:
+      - pyproject.toml
+    deps:
+      - install:base
+    cmds:
+      - .venvs/base/bin/flitenv test install
+  install:lint:
+    sources:
+      - pyproject.toml
+    deps:
+      - install:base
+    cmds:
+      - .venvs/base/bin/flitenv lint install
+
+  pytest:run:
+    desc: "run Python tests"
+    deps:
+      - install:test
+    cmds:
+      - .venvs/base/bin/flitenv test run pytest {{.CLI_ARGS}}
+  flake8:run:
+    desc: "lint Python code"
+    deps:
+      - install:lint
+    cmds:
+      - .venvs/base/bin/flitenv lint run flake8 {{.CLI_ARGS}} .
+  mypy:run:
+    desc: "check type annotations"
+    deps:
+      - install:lint
+    cmds:
+      - .venvs/base/bin/flitenv lint run mypy {{.CLI_ARGS}}
+  yamllint:run:
+    desc: "lint YAML files"
+    deps:
+      - install:lint
+    cmds:
+      - .venvs/base/bin/flitenv lint run yamllint {{.CLI_ARGS}} .
+  bandit:run:
+    desc: "run security checks for Python code"
+    deps:
+      - install:lint
+    cmds:
+      - >
+        .venvs/base/bin/flitenv lint run
+        bandit {{.CLI_ARGS}} -q -r dvs
+  unify:run:
+    desc: "replace single quotes by double quotes in Python code"
+    deps:
+      - install:lint
+    cmds:
+      - >
+        .venvs/base/bin/flitenv lint run unify
+        -r -i --quote='"'
+        dvs tests
+  isort:run:
+    desc: "sort imports"
+    deps:
+      - install:lint
+    cmds:
+      - .venvs/base/bin/flitenv lint run isort {{.CLI_ARGS}} .
+  isort:check:
+    desc: "check if all imports are sorted"
+    deps:
+      - install:lint
+    cmds:
+      - .venvs/base/bin/flitenv lint run isort {{.CLI_ARGS}} --check .
+  linters:run:
+    desc: "run all linters"
+    cmds:
+      - task: flake8:run
+      - task: mypy:run
+      - task: isort:check
+      - task: yamllint:run
+      - task: bandit:run
