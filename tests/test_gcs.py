@@ -16,11 +16,25 @@ def random_name() -> str:
     return ''.join(choice(ascii_letters) for _ in range(20))
 
 
-@pytest.mark.asyncio
-async def test_lock_unlock(random_name: str, bucket: str):
+@pytest.fixture
+async def lock(random_name: str, bucket: str):
     m = mutex.GCS(
         bucket=bucket,
         name=random_name,
     )
-    await m.acquire()
-    await m.release()
+    async with m:
+        yield m
+
+
+@pytest.mark.asyncio
+async def test_lock_unlock(lock: mutex.GCS):
+    await lock.acquire()
+    await lock.release()
+
+
+@pytest.mark.asyncio
+async def test_cannot_lock_twice(lock: mutex.GCS):
+    await lock.acquire()
+    with pytest.raises(mutex.AlreadyAcquiredError):
+        await lock.acquire()
+    await lock.release()

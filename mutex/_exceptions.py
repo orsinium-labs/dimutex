@@ -6,3 +6,7 @@ class MutexError(Exception):
 
 class AlreadyAcquiredError(MutexError):
     pass
+
+
+class AlreadyReleasedError(MutexError):
+    pass

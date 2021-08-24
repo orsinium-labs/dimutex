@@ -73,15 +73,8 @@ class GCS:
         if resp.status == HTTPStatus.OK:
             return
         if resp.status == HTTPStatus.PRECONDITION_FAILED:
-            content = await resp.json()
-            expires = datetime.fromisoformat(content['metadata']['expires'])
-            if self.now() >= expires:
-                resp = await self._delete(generation=content['generation'])
-                resp.raise_for_status()
-                await self.acquire()
-                return
-            raise AlreadyAcquiredError()
-        print(await resp.read())
+            await self._acquire_expired()
+            return
         resp.raise_for_status()
 
     async def reacquire(self) -> None:
@@ -102,11 +95,26 @@ class GCS:
         resp = await self._delete()
         resp.raise_for_status()
 
+    async def _acquire_expired(self) -> None:
+        resp = await self._get()
+        resp.raise_for_status()
+        content = await resp.json()
+        expires = datetime.fromisoformat(content['metadata']['expires'])
+        if self.now() < expires:
+            raise AlreadyAcquiredError()
+
+        resp = await self._delete(generation=content['generation'])
+        resp.raise_for_status()
+        await self.acquire()
+        return
+
     async def _create(self) -> aiohttp.ClientResponse:
-        metadata = {
-            'name': self.name,
-            'expires': (self.now() + self.ttl).isoformat(),
-        }
+        metadata = dict(
+            name=self.name,
+            metadata={
+                'expires': (self.now() + self.ttl).isoformat(),
+            },
+        )
         body = '\r\n'.join([
             f'--{BOUNDARY}',
             'Content-Type: application/json; charset=UTF-8',
@@ -143,6 +151,12 @@ class GCS:
         return await self.session.delete(
             url=f'{self.api_url}/storage/v1/b/{self.bucket}/o/{quote(self.name)}',
             params=params,
+            headers=await self._headers(),
+        )
+
+    async def _get(self) -> aiohttp.ClientResponse:
+        return await self.session.get(
+            url=f'{self.api_url}/storage/v1/b/{self.bucket}/o/{quote(self.name)}',
             headers=await self._headers(),
         )
 
