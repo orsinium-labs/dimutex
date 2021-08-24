@@ -2,7 +2,7 @@ from typing import Callable, Dict, Optional
 import aiohttp
 from gcloud.aio.auth import Token
 from http import HTTPStatus
-from ._exceptions import AlreadyAcquiredError
+from ._exceptions import AlreadyAcquiredError, AlreadyReleasedError
 from urllib.parse import quote
 import json
 from datetime import datetime, timedelta
@@ -90,9 +90,12 @@ class GCS:
         """Release (unlock) the mutex
 
         Raises:
+            AlreadyReleasedError
             ClientResponseError
         """
         resp = await self._delete()
+        if resp.status == HTTPStatus.NOT_FOUND:
+            raise AlreadyReleasedError
         resp.raise_for_status()
 
     async def _acquire_expired(self) -> None:
@@ -101,7 +104,7 @@ class GCS:
         content = await resp.json()
         expires = datetime.fromisoformat(content['metadata']['expires'])
         if self.now() < expires:
-            raise AlreadyAcquiredError()
+            raise AlreadyAcquiredError
 
         resp = await self._delete(generation=content['generation'])
         resp.raise_for_status()
