@@ -4,7 +4,6 @@ from gcloud.aio.auth import Token
 from http import HTTPStatus
 from ._exceptions import AlreadyAcquiredError
 from urllib.parse import quote
-from urllib3.filepost import encode_multipart_formdata
 import json
 from datetime import datetime, timedelta
 
@@ -13,6 +12,7 @@ DEFAULT_URL = 'https://www.googleapis.com'
 SCOPES = [
     'https://www.googleapis.com/auth/devstorage.read_write',
 ]
+BOUNDARY = 'cf58b63b6ce6f37881e9740f24be22d7'
 
 
 class GCS:
@@ -47,7 +47,7 @@ class GCS:
         if session is None:
             session = aiohttp.ClientSession(
                 connector=aiohttp.TCPConnector(ssl=not self.emulator),
-                timeout=10,
+                timeout=aiohttp.ClientTimeout(total=10),
             )
         self.session = session
         if token is None:
@@ -81,6 +81,7 @@ class GCS:
                 await self.acquire()
                 return
             raise AlreadyAcquiredError()
+        print(await resp.read())
         resp.raise_for_status()
 
     async def reacquire(self) -> None:
@@ -106,25 +107,28 @@ class GCS:
             'name': self.name,
             'expires': (self.now() + self.ttl).isoformat(),
         }
-        body, content_type = encode_multipart_formdata([
-            (
-                {'Content-Type': 'application/json; charset=UTF-8'},
-                json.dumps(metadata).encode('utf-8'),
-            ),
-            (
-                {'Content-Type': 'text/plain'},
-                b'',
-            ),
+        body = '\r\n'.join([
+            f'--{BOUNDARY}',
+            'Content-Type: application/json; charset=UTF-8',
+            '',
+            json.dumps(metadata),
+            f'--{BOUNDARY}',
+            'Content-Type: plain/text',
+            '',
+            'lock',
+            '',
+            f'--{BOUNDARY}--',
+            '',
         ])
         headers = await self._headers()
         headers.update({
             'Accept': 'application/json',
-            'Content-Length': '0',
-            'Content-Type': content_type,
+            'Content-Length': str(len(body)),
+            'Content-Type': f'multipart/related; boundary={BOUNDARY}',
         })
         return await self.session.post(
             url=f'{self.api_url}/upload/storage/v1/b/{self.bucket}/o',
-            data=body,
+            data=body.encode('utf8'),
             params=dict(
                 uploadType='multipart',
                 ifGenerationMatch='0',
