@@ -16,6 +16,16 @@ BOUNDARY = 'cf58b63b6ce6f37881e9740f24be22d7'
 
 
 class GCS:
+    """
+
+    Args:
+        bucket: GCS bucket name.
+        name: lock name, used as filename of lock in GCS.
+        api_url: URL of GCS API, helpful for testing with emulator.
+        now: callback used to determine the current time, helpful for tesing.
+        ttl: how long to wait before the lock considered to be stale.
+        required: if True, `acquire` must be called at least once.
+    """
     bucket: str
     name: str
     api_url: str
@@ -24,6 +34,7 @@ class GCS:
     emulator: bool
     ttl: timedelta
     now: Callable[..., datetime]
+    required: bool
 
     def __init__(
         self,
@@ -34,6 +45,7 @@ class GCS:
         token: Optional[Token] = None,
         now: Callable[[], datetime] = datetime.utcnow,
         ttl: timedelta = timedelta(seconds=60),
+        required: bool = True,
     ) -> None:
         self.bucket = bucket
         self.name = name
@@ -41,6 +53,7 @@ class GCS:
         self.api_url = api_url or DEFAULT_URL
         self.ttl = ttl
         self.now = now  # type: ignore
+        self.required = required
 
         if session is None:
             session = aiohttp.ClientSession(
@@ -71,6 +84,7 @@ class GCS:
             AlreadyAcquiredError
             ClientResponseError
         """
+        self.required = False
         resp = await self._create(force=force)
         if resp.status == HTTPStatus.PRECONDITION_FAILED:
             if not expired:
@@ -116,6 +130,7 @@ class GCS:
         Raises:
             ClientResponseError
         """
+        self.required = False
         resp = await self._get()
         if resp.status == HTTPStatus.NOT_FOUND:
             return False
@@ -178,4 +193,12 @@ class GCS:
         return self
 
     async def __aexit__(self, *args) -> None:
+        # Check if the mutex is required but `acquire` or `acquired` was never used.
+        # It allows to catch the error when the user assumes that entering
+        # the context automatically locks the mutex.
+        #
+        # If you see this error, you must either:
+        #   * call `acquire` or `acquired` at least once;
+        #   * or pass `required=False` when creating the mutex.
+        assert not self.required, 'lock is required but was not used'
         await self.session.close()

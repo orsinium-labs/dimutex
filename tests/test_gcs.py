@@ -99,3 +99,11 @@ async def test_lock_expired_race(lock: mutex.GCS):
     with pytest.raises(mutex.AlreadyAcquiredError):
         await lock._release_expired()
     await lock.release()
+
+
+@pytest.mark.asyncio
+async def test_required_but_unused(lock: mutex.GCS):
+    with pytest.raises(AssertionError):
+        async with lock:
+            pass
+    assert await lock.acquired() is False
