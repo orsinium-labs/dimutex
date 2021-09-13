@@ -1,5 +1,6 @@
 from random import choice
 from string import ascii_letters
+from datetime import datetime, timedelta
 import pytest
 import os
 
@@ -52,4 +53,14 @@ async def test_cannot_unlock_twice(lock: mutex.GCS):
 async def test_lock_twice_if_forced(lock: mutex.GCS):
     await lock.acquire()
     await lock.acquire(force=True)
+    await lock.release()
+
+
+@pytest.mark.asyncio
+async def test_lock_expired(lock: mutex.GCS):
+    now = datetime(2010, 11, 12, 13, 14, 15)
+    lock.now = lambda: now  # type: ignore
+    await lock.acquire()
+    lock.now = lambda: now + timedelta(seconds=61)  # type: ignore
+    await lock.acquire()
     await lock.release()

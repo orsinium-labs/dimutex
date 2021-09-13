@@ -32,7 +32,7 @@ class GCS:
         api_url: Optional[str] = None,
         session: Optional[aiohttp.ClientSession] = None,
         token: Optional[Token] = None,
-        now: Optional[Callable[[], datetime]] = None,
+        now: Callable[[], datetime] = datetime.utcnow,
         ttl: timedelta = timedelta(seconds=60),
     ) -> None:
         self.bucket = bucket
@@ -40,10 +40,8 @@ class GCS:
         self.emulator = api_url is not None
         self.api_url = api_url or DEFAULT_URL
         self.ttl = ttl
-
-        if now is None:
-            now = datetime.utcnow
         self.now = now  # type: ignore
+
         if session is None:
             session = aiohttp.ClientSession(
                 connector=aiohttp.TCPConnector(ssl=not self.emulator),
