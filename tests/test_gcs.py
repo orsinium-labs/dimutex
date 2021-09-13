@@ -34,6 +34,15 @@ async def test_lock_unlock(lock: mutex.GCS):
 
 
 @pytest.mark.asyncio
+async def test_acquired_check(lock: mutex.GCS):
+    assert await lock.acquired() is False
+    await lock.acquire()
+    assert await lock.acquired() is True
+    await lock.release()
+    assert await lock.acquired() is False
+
+
+@pytest.mark.asyncio
 async def test_cannot_lock_twice(lock: mutex.GCS):
     await lock.acquire()
     with pytest.raises(mutex.AlreadyAcquiredError):

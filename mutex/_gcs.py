@@ -107,6 +107,18 @@ class GCS:
         await self.acquire()
         return
 
+    async def acquired(self) -> bool:
+        """Check is the mutex is already acquired (locked).
+
+        Raises:
+            ClientResponseError
+        """
+        resp = await self._get()
+        if resp.status == HTTPStatus.NOT_FOUND:
+            return False
+        resp.raise_for_status()
+        return True
+
     async def _create(self, force: bool) -> aiohttp.ClientResponse:
         metadata = dict(
             name=self.name,
@@ -159,7 +171,7 @@ class GCS:
             headers=await self._headers(),
         )
 
-    async def __aenter__(self) -> 'Token':
+    async def __aenter__(self) -> 'GCS':
         return self
 
     async def __aexit__(self, *args) -> None:
