@@ -49,7 +49,7 @@ class GCS:
             )
         self.session = session
         if token is None:
-            token = Token(service_file=None, scopes=SCOPES, session=session)
+            token = Token(scopes=SCOPES, session=session)  # type: ignore[arg-type]
         self.token = token
 
     async def _headers(self) -> Dict[str, str]:
@@ -72,11 +72,10 @@ class GCS:
             ClientResponseError
         """
         resp = await self._create(force=force)
-        if resp.status == HTTPStatus.OK:
-            return
         if resp.status == HTTPStatus.PRECONDITION_FAILED:
-            if expired:
-                await self._acquire_expired()
+            if not expired:
+                raise AlreadyAcquiredError
+            await self._acquire_expired()
             return
         resp.raise_for_status()
 

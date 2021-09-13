@@ -73,3 +73,14 @@ async def test_lock_expired(lock: mutex.GCS):
     lock.now = lambda: now + timedelta(seconds=61)  # type: ignore
     await lock.acquire()
     await lock.release()
+
+
+@pytest.mark.asyncio
+async def test_dont_lock_expired_if_expired_is_false(lock: mutex.GCS):
+    now = datetime(2010, 11, 12, 13, 14, 15)
+    lock.now = lambda: now  # type: ignore
+    await lock.acquire()
+    lock.now = lambda: now + timedelta(seconds=61)  # type: ignore
+    with pytest.raises(mutex.AlreadyAcquiredError):
+        await lock.acquire(expired=False)
+    await lock.release()

@@ -40,7 +40,7 @@ addopts = [
     "--cov-report=html",
     "--cov-report=xml",
     "--cov-report=term-missing:skip-covered",
-    "--cov-fail-under=70",
+    "--cov-fail-under=95",
 ]
 
 [tool.coverage.report]
@@ -57,7 +57,6 @@ branch = true
 files = ["mutex", "tests"]
 python_version = 3.9
 ignore_missing_imports = true
-# follow_imports = "silent"
 show_error_codes = true
 
 # Settings making mypy checks harder.
