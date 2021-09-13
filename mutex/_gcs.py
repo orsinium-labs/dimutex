@@ -75,7 +75,8 @@ class GCS:
         if resp.status == HTTPStatus.PRECONDITION_FAILED:
             if not expired:
                 raise AlreadyAcquiredError
-            await self._acquire_expired()
+            await self._release_expired()
+            await self.acquire(force=force, expired=False)
             return
         resp.raise_for_status()
 
@@ -91,10 +92,15 @@ class GCS:
             raise AlreadyReleasedError
         resp.raise_for_status()
 
-    async def _acquire_expired(self) -> None:
+    async def _release_expired(self) -> None:
         """Acquire the lock if and only if the lock exists but expired.
+        Raises:
+            ClientResponseError
+            AlreadyAcquiredError
         """
         resp = await self._get()
+        if resp.status == HTTPStatus.NOT_FOUND:
+            return
         resp.raise_for_status()
         content = await resp.json()
         expires = datetime.fromisoformat(content['metadata']['expires'])
@@ -103,8 +109,6 @@ class GCS:
 
         resp = await self._delete(generation=content['generation'])
         resp.raise_for_status()
-        await self.acquire()
-        return
 
     async def acquired(self) -> bool:
         """Check is the mutex is already acquired (locked).
