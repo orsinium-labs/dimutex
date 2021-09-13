@@ -46,3 +46,10 @@ async def test_cannot_unlock_twice(lock: mutex.GCS):
     await lock.release()
     with pytest.raises(mutex.AlreadyReleasedError):
         await lock.release()
+
+
+@pytest.mark.asyncio
+async def test_lock_twice_if_forced(lock: mutex.GCS):
+    await lock.acquire()
+    await lock.acquire(force=True)
+    await lock.release()

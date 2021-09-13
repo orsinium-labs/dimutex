@@ -62,29 +62,25 @@ class GCS:
             'Authorization': f'Bearer {token}',
         }
 
-    async def acquire(self) -> None:
+    async def acquire(self, force: bool = False, expired: bool = True) -> None:
         """Acquire (lock) the mutex.
+
+        Args:
+            force: acquire even if it is already locked
+            expired: acquire if the lock is expired
 
         Raises:
             AlreadyAcquiredError
             ClientResponseError
         """
-        resp = await self._create()
+        resp = await self._create(force=force)
         if resp.status == HTTPStatus.OK:
             return
         if resp.status == HTTPStatus.PRECONDITION_FAILED:
-            await self._acquire_expired()
+            if expired:
+                await self._acquire_expired()
             return
         resp.raise_for_status()
-
-    async def reacquire(self) -> None:
-        """Release (unlock) the mutex even if it is already locked.
-
-        Raises:
-            ClientResponseError
-        """
-        await self.release()
-        await self.acquire()
 
     async def release(self) -> None:
         """Release (unlock) the mutex
@@ -99,6 +95,8 @@ class GCS:
         resp.raise_for_status()
 
     async def _acquire_expired(self) -> None:
+        """Acquire the lock if and only if the lock exists but expired.
+        """
         resp = await self._get()
         resp.raise_for_status()
         content = await resp.json()
@@ -111,7 +109,7 @@ class GCS:
         await self.acquire()
         return
 
-    async def _create(self) -> aiohttp.ClientResponse:
+    async def _create(self, force: bool) -> aiohttp.ClientResponse:
         metadata = dict(
             name=self.name,
             metadata={
@@ -137,13 +135,13 @@ class GCS:
             'Content-Length': str(len(body)),
             'Content-Type': f'multipart/related; boundary={BOUNDARY}',
         })
+        params = dict(uploadType='multipart')
+        if not force:
+            params['ifGenerationMatch'] = '0'
         return await self.session.post(
             url=f'{self.api_url}/upload/storage/v1/b/{self.bucket}/o',
             data=body.encode('utf8'),
-            params=dict(
-                uploadType='multipart',
-                ifGenerationMatch='0',
-            ),
+            params=params,
             headers=headers,
         )
 
