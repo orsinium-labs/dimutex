@@ -1,5 +1,43 @@
 # mutex
 
-Distributed mutex implementation for GCS.
+Python library implementing [asyncio][asyncio]-based distributed mutex on top of different providers.
 
-Based on the algorithm described in article [A robust distributed locking algorithm based on Google Cloud Storage](https://www.joyfulbikeshedding.com/blog/2021-05-19-robust-distributed-locking-algorithm-based-on-google-cloud-storage.html).
+[Mutex][mutex] is a synchronization primitive used to ensure that only one worker can do the given job. It can be used for safe access to a shared resource or for distributing tasks among multiple workers.
+
+Currently, the only implemented provider is GCS (Google Cloud Storage). The implementation is based on the algorithm described in article [A robust distributed locking algorithm based on Google Cloud Storage][gcs-algo].
+
+[asyncio]: https://docs.python.org/3/library/asyncio.html
+[mutex]: https://stackoverflow.com/questions/34524/what-is-a-mutex
+[gcs-algo]: https://www.joyfulbikeshedding.com/blog/2021-05-19-robust-distributed-locking-algorithm-based-on-google-cloud-storage.html
+
+## Features
+
++ Asynchronous.
++ Type-safe.
++ Atomic.
++ Expiration mechanism to ensure that a single worker won't hold the lock forever.
++ Supports emulators.
+
+## Installation
+
+```bash
+python3 -m pip install mutex
+```
+
+## Usage
+
+```python
+import mutex
+
+async def do_something():
+    lock = mutex.GCS(bucket='bucket-name', name='lock-name')
+    async with lock:
+        try:
+            lock.acquire()
+        except mutex.AlreadyAcquiredError:
+            return 'already acquired'
+        try:
+            ... # do something with the shared resuource
+        finally:
+            lock.release()
+```

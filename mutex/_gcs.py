@@ -107,7 +107,8 @@ class GCS:
         resp.raise_for_status()
 
     async def _release_expired(self) -> None:
-        """Acquire the lock if and only if the lock exists but expired.
+        """Release the lock if and only if the lock exists but expired.
+
         Raises:
             ClientResponseError
             AlreadyAcquiredError
