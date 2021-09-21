@@ -7,7 +7,7 @@ module = "dimutex"
 license = "MIT"
 author = "nico-lab"
 author-email = "gram@nico-lab.com"
-requires-python = ">=3.7"
+requires-python = ">=3.6"
 classifiers = ["Private :: Do Not Upload"]
 requires = [
     "aiohttp",
