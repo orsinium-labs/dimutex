@@ -1,4 +1,4 @@
-# mutex
+# dimutex
 
 Python library implementing [asyncio][asyncio]-based distributed mutex on top of different providers.
 
@@ -21,20 +21,20 @@ Currently, the only implemented provider is GCS (Google Cloud Storage). The impl
 ## Installation
 
 ```bash
-python3 -m pip install mutex
+python3 -m pip install dimutex
 ```
 
 ## Usage
 
 ```python
-import mutex
+import dimutex
 
 async def do_something():
-    lock = mutex.GCS(bucket='bucket-name', name='lock-name')
+    lock = dimutex.GCS(bucket='bucket-name', name='lock-name')
     async with lock:
         try:
             lock.acquire()
-        except mutex.AlreadyAcquiredError:
+        except dimutex.AlreadyAcquiredError:
             return 'already acquired'
         try:
             ... # do something with the shared resuource

@@ -3,7 +3,7 @@ requires = ["flit_core >=2,<4"]
 build-backend = "flit_core.buildapi"
 
 [tool.flit.metadata]
-module = "mutex"
+module = "dimutex"
 license = "MIT"
 author = "nico-lab"
 author-email = "gram@nico-lab.com"
@@ -36,7 +36,7 @@ skip = ".venvs/"
 
 [tool.pytest.ini_options]
 addopts = [
-    "--cov=mutex",
+    "--cov=dimutex",
     "--cov-report=html",
     "--cov-report=xml",
     "--cov-report=term-missing:skip-covered",
@@ -54,7 +54,7 @@ exclude_lines = [
 branch = true
 
 [tool.mypy]
-files = ["mutex", "tests"]
+files = ["dimutex", "tests"]
 python_version = 3.9
 ignore_missing_imports = true
 show_error_codes = true
