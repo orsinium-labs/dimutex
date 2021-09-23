@@ -5,7 +5,7 @@ from http import HTTPStatus
 from ._exceptions import AlreadyAcquiredError, AlreadyReleasedError
 from urllib.parse import quote
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 
 DEFAULT_URL = 'https://www.googleapis.com'
@@ -13,19 +13,32 @@ SCOPES = [
     'https://www.googleapis.com/auth/devstorage.read_write',
 ]
 BOUNDARY = 'cf58b63b6ce6f37881e9740f24be22d7'
+TIME_FORMAT = '%Y-%d-%m %H:%M:%S.%f %Z'
 
 
 class GCS:
     """
 
     Args:
-        bucket: GCS bucket name.
-        name: lock name, used as filename of lock in GCS.
-        api_url: URL of GCS API, helpful for testing with emulator.
-        now: callback used to determine the current time, helpful for tesing.
-        ttl: how long to wait before the lock considered to be stale.
-        required: if True, `acquire` must be called at least once.
+        bucket:     GCS bucket name.
+        name:       Lock name, used as filename of lock in GCS.
+        api_url:    URL of GCS API, helpful for testing with emulator.
+        now:        Callback used to determine the current time.
+        ttl:        How long to wait before the lock considered to be stale.
+        required:   If True, `acquire` must be called at least once.
     """
+    __slots__ = [
+        'bucket',
+        'name',
+        'api_url',
+        'session',
+        'token',
+        'emulator',
+        'ttl',
+        'now',
+        'required',
+    ]
+
     bucket: str
     name: str
     api_url: str
@@ -43,7 +56,7 @@ class GCS:
         api_url: Optional[str] = None,
         session: Optional[aiohttp.ClientSession] = None,
         token: Optional[Token] = None,
-        now: Callable[[], datetime] = datetime.utcnow,
+        now: Callable[[], datetime] = datetime.now,
         ttl: timedelta = timedelta(seconds=60),
         required: bool = True,
     ) -> None:
@@ -118,8 +131,10 @@ class GCS:
             return
         resp.raise_for_status()
         content = await resp.json()
-        expires = datetime.fromisoformat(content['metadata']['expires'])
-        if self.now() < expires:
+        expires = datetime.strptime(content['metadata']['expires'], TIME_FORMAT)
+        expires = expires.replace(tzinfo=timezone.utc)
+        now = self.now().astimezone(timezone.utc)
+        if now < expires:
             raise AlreadyAcquiredError
 
         resp = await self._delete(generation=content['generation'])
@@ -139,10 +154,11 @@ class GCS:
         return True
 
     async def _create(self, force: bool) -> aiohttp.ClientResponse:
+        now = self.now().astimezone(timezone.utc)
         metadata = dict(
             name=self.name,
             metadata={
-                'expires': (self.now() + self.ttl).isoformat(),
+                'expires': (now + self.ttl).strftime(TIME_FORMAT),
             },
         )
         body = '\r\n'.join([
