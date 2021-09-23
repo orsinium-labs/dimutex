@@ -114,6 +114,7 @@ class GCS:
             AlreadyReleasedError
             ClientResponseError
         """
+        self.required = False
         resp = await self._delete()
         if resp.status == HTTPStatus.NOT_FOUND:
             raise AlreadyReleasedError
