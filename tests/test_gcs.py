@@ -34,6 +34,13 @@ async def test_lock_unlock(lock: dimutex.GCS):
 
 
 @pytest.mark.asyncio
+async def test_lock_unlock__subdirectory(lock: dimutex.GCS):
+    lock.name += '/subpath.bin'
+    await lock.acquire()
+    await lock.release()
+
+
+@pytest.mark.asyncio
 async def test_acquired_check(lock: dimutex.GCS):
     assert await lock.acquired() is False
     await lock.acquire()

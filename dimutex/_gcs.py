@@ -3,7 +3,7 @@ import aiohttp
 from gcloud.aio.auth import Token
 from http import HTTPStatus
 from ._exceptions import AlreadyAcquiredError, AlreadyReleasedError
-from urllib.parse import quote
+from urllib.parse import quote_plus
 import json
 from datetime import datetime, timedelta, timezone
 
@@ -196,14 +196,14 @@ class GCS:
         if generation is not None:
             params['ifGenerationMatch'] = generation
         return await self.session.delete(
-            url=f'{self.api_url}/storage/v1/b/{self.bucket}/o/{quote(self.name)}',
+            url=f'{self.api_url}/storage/v1/b/{self.bucket}/o/{quote_plus(self.name)}',
             params=params,
             headers=await self._headers(),
         )
 
     async def _get(self) -> aiohttp.ClientResponse:
         return await self.session.get(
-            url=f'{self.api_url}/storage/v1/b/{self.bucket}/o/{quote(self.name)}',
+            url=f'{self.api_url}/storage/v1/b/{self.bucket}/o/{quote_plus(self.name)}',
             headers=await self._headers(),
         )
 
