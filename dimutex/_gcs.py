@@ -5,10 +5,18 @@ from http import HTTPStatus
 from ._exceptions import AlreadyAcquiredError, AlreadyReleasedError
 from urllib.parse import quote_plus
 import json
+import os
 from datetime import datetime, timedelta, timezone
 
 
-DEFAULT_URL = 'https://www.googleapis.com'
+def _default_url() -> str:
+    host = os.environ.get('STORAGE_EMULATOR_HOST')
+    if host is None:
+        return 'https://www.googleapis.com'
+    return f'https://{host}'
+
+
+DEFAULT_URL = _default_url()
 SCOPES = [
     'https://www.googleapis.com/auth/devstorage.read_write',
 ]
