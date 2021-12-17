@@ -1,8 +1,9 @@
+import os
+from datetime import datetime, timedelta
 from random import choice
 from string import ascii_letters
-from datetime import datetime, timedelta
+
 import pytest
-import os
 
 import dimutex
 
