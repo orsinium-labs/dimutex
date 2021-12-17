@@ -9,14 +9,15 @@ import os
 from datetime import datetime, timedelta, timezone
 
 
-def _default_url() -> str:
+def _get_emulator_url() -> Optional[str]:
     host = os.environ.get('STORAGE_EMULATOR_HOST')
-    if host is None:
-        return 'https://www.googleapis.com'
+    if not host:
+        return None
     return f'https://{host}'
 
 
-DEFAULT_URL = _default_url()
+DEFAULT_URL = 'https://www.googleapis.com'
+EMULATOR_URL = _get_emulator_url()
 SCOPES = [
     'https://www.googleapis.com/auth/devstorage.read_write',
 ]
@@ -52,7 +53,6 @@ class GCS:
     api_url: str
     session: aiohttp.ClientSession
     token: Token
-    emulator: bool
     ttl: timedelta
     now: Callable[..., datetime]
     required: bool
@@ -70,8 +70,8 @@ class GCS:
     ) -> None:
         self.bucket = bucket
         self.name = name
-        self.emulator = api_url is not None
-        self.api_url = api_url or DEFAULT_URL
+        self.emulator = api_url is not None or EMULATOR_URL is not None
+        self.api_url = api_url or EMULATOR_URL or DEFAULT_URL
         self.ttl = ttl
         self.now = now  # type: ignore
         self.required = required
@@ -125,7 +125,7 @@ class GCS:
         self.required = False
         resp = await self._delete()
         if resp.status == HTTPStatus.NOT_FOUND:
-            raise AlreadyReleasedError
+            raise AlreadyReleasedError(self.name)
         resp.raise_for_status()
 
     async def _release_expired(self) -> None:
