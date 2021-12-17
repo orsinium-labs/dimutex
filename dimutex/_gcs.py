@@ -34,6 +34,7 @@ class GCS:
         api_url:    URL of GCS API, helpful for testing with emulator.
         now:        Callback used to determine the current time.
         ttl:        How long to wait before the lock considered to be stale.
+        body:       File content for lock, may be useful for debugging.
         required:   If True, `acquire` must be called at least once.
     """
     __slots__ = [
@@ -45,6 +46,7 @@ class GCS:
         'emulator',
         'ttl',
         'now',
+        'body',
         'required',
     ]
 
@@ -55,6 +57,7 @@ class GCS:
     token: Token
     ttl: timedelta
     now: Callable[..., datetime]
+    body: str
     required: bool
 
     def __init__(
@@ -66,6 +69,7 @@ class GCS:
         token: Optional[Token] = None,
         now: Callable[[], datetime] = datetime.now,
         ttl: timedelta = timedelta(seconds=60),
+        body: str = 'lock',
         required: bool = True,
     ) -> None:
         self.bucket = bucket
@@ -74,6 +78,7 @@ class GCS:
         self.api_url = api_url or EMULATOR_URL or DEFAULT_URL
         self.ttl = ttl
         self.now = now  # type: ignore
+        self.body = body
         self.required = required
 
         if session is None:
@@ -178,7 +183,7 @@ class GCS:
             f'--{BOUNDARY}',
             'Content-Type: plain/text',
             '',
-            'lock',
+            self.body,
             '',
             f'--{BOUNDARY}--',
             '',
