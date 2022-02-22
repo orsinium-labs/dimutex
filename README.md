@@ -33,11 +33,11 @@ async def do_something():
     lock = dimutex.GCS(bucket='bucket-name', name='lock-name')
     async with lock:
         try:
-            lock.acquire()
+            await lock.acquire()
         except dimutex.AlreadyAcquiredError:
             return 'already acquired'
         try:
             ... # do something with the shared resuource
         finally:
-            lock.release()
+            await lock.release()
 ```

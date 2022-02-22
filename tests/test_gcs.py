@@ -115,3 +115,20 @@ async def test_required_but_unused(lock: dimutex.GCS):
         async with lock:
             pass
     assert await lock.acquired() is False
+
+
+@pytest.mark.asyncio
+async def test_refresh(lock: dimutex.GCS):
+    now = datetime(2010, 11, 12, 13, 14, 15)
+    lock.now = lambda: now  # type: ignore
+    await lock.acquire()
+    lock.now = lambda: now + timedelta(seconds=30)  # type: ignore
+    await lock.refresh()
+
+    lock.now = lambda: now + timedelta(seconds=61)  # type: ignore
+    with pytest.raises(dimutex.AlreadyAcquiredError):
+        await lock.acquire()
+
+    await lock.release()
+    with pytest.raises(dimutex.AlreadyReleasedError):
+        await lock.refresh()

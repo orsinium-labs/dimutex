@@ -19,6 +19,7 @@ def _get_emulator_url() -> Optional[str]:
 
 
 DEFAULT_URL = 'https://www.googleapis.com'
+DEFAULT_TTL = timedelta(seconds=60)
 EMULATOR_URL = _get_emulator_url()
 SCOPES = [
     'https://www.googleapis.com/auth/devstorage.read_write',
@@ -70,7 +71,7 @@ class GCS:
         session: Optional[aiohttp.ClientSession] = None,
         token: Optional[Token] = None,
         now: Callable[[], datetime] = datetime.now,
-        ttl: timedelta = timedelta(seconds=60),
+        ttl: timedelta = DEFAULT_TTL,
         body: str = 'lock',
         required: bool = True,
     ) -> None:
@@ -135,6 +136,21 @@ class GCS:
             raise AlreadyReleasedError(self.name)
         resp.raise_for_status()
 
+    async def refresh(self) -> None:
+        """Refresh the mutex.
+
+        The method postpones the mutex expiration to TTL.
+
+        Raises:
+            AlreadyReleasedError
+            ClientResponseError
+        """
+        self.required = False
+        resp = await self._patch()
+        if resp.status == HTTPStatus.NOT_FOUND:
+            raise AlreadyReleasedError(self.name)
+        resp.raise_for_status()
+
     async def _release_expired(self) -> None:
         """Release the lock if and only if the lock exists but expired.
 
@@ -169,13 +185,14 @@ class GCS:
         resp.raise_for_status()
         return True
 
-    async def _create(self, force: bool) -> aiohttp.ClientResponse:
+    def _make_expired(self) -> str:
         now = self.now().astimezone(timezone.utc)
+        return (now + self.ttl).strftime(TIME_FORMAT)
+
+    async def _create(self, force: bool) -> aiohttp.ClientResponse:
         metadata = dict(
             name=self.name,
-            metadata={
-                'expires': (now + self.ttl).strftime(TIME_FORMAT),
-            },
+            metadata={'expires': self._make_expired()},
         )
         body = '\r\n'.join([
             f'--{BOUNDARY}',
@@ -220,6 +237,16 @@ class GCS:
         return await self.session.get(
             url=f'{self.api_url}/storage/v1/b/{self.bucket}/o/{quote_plus(self.name)}',
             headers=await self._headers(),
+        )
+
+    async def _patch(self) -> aiohttp.ClientResponse:
+        metadata = dict(
+            metadata={'expires': self._make_expired()},
+        )
+        return await self.session.patch(
+            url=f'{self.api_url}/storage/v1/b/{self.bucket}/o/{quote_plus(self.name)}',
+            headers=await self._headers(),
+            json=metadata,
         )
 
     async def __aenter__(self) -> 'GCS':
