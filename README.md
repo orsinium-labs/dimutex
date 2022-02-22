@@ -4,7 +4,7 @@ Python library implementing [asyncio][asyncio]-based distributed mutex on top of
 
 [Mutex][mutex] is a synchronization primitive used to ensure that only one worker can do the given job. It can be used for safe access to a shared resource or for distributing tasks among multiple workers.
 
-Currently, the only implemented provider is GCS (Google Cloud Storage). The implementation is based on the algorithm described in article [A robust distributed locking algorithm based on Google Cloud Storage][gcs-algo].
+Currently, the only implemented provider is GCS (Google Cloud Storage). The implementation is based on the algorithm described in article [A robust distributed locking algorithm based on Google Cloud Storage][gcs-algo] (see also [Ruby implementation](https://github.com/FooBarWidget/distributed-lock-google-cloud-storage-ruby)).
 
 [asyncio]: https://docs.python.org/3/library/asyncio.html
 [mutex]: https://stackoverflow.com/questions/34524/what-is-a-mutex
