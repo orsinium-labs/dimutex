@@ -45,6 +45,9 @@ lint = [
     "unify",
 ]
 
+[project.urls]
+Source = "https://github.com/orsinium-labs/dimutex"
+
 [tool.isort]
 profile = "django"
 lines_after_imports = 2
