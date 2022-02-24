@@ -47,12 +47,6 @@ tasks:
       - install:lint
     cmds:
       - .venvs/base/bin/flitenv lint run mypy {{.CLI_ARGS}}
-  yamllint:run:
-    desc: "lint YAML files"
-    deps:
-      - install:lint
-    cmds:
-      - .venvs/base/bin/flitenv lint run yamllint {{.CLI_ARGS}} .
   bandit:run:
     desc: "run security checks for Python code"
     deps:
@@ -60,7 +54,7 @@ tasks:
     cmds:
       - >
         .venvs/base/bin/flitenv lint run
-        bandit {{.CLI_ARGS}} -q -r dvs
+        bandit {{.CLI_ARGS}} -q -r dimutex
   unify:run:
     desc: "replace single quotes by double quotes in Python code"
     deps:
@@ -68,8 +62,8 @@ tasks:
     cmds:
       - >
         .venvs/base/bin/flitenv lint run unify
-        -r -i --quote='"'
-        dvs tests
+        -r -i --quote="'"
+        dimutex tests
   isort:run:
     desc: "sort imports"
     deps:
@@ -88,5 +82,4 @@ tasks:
       - task: flake8:run
       - task: mypy:run
       - task: isort:check
-      - task: yamllint:run
       - task: bandit:run

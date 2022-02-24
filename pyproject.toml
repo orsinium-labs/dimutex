@@ -1,20 +1,37 @@
 [build-system]
-requires = ["flit_core >=2,<4"]
+requires = ["flit_core >=3.2,<4"]
 build-backend = "flit_core.buildapi"
 
-[tool.flit.metadata]
-module = "dimutex"
-license = "MIT"
-author = "nico-lab"
-author-email = "gram@nico-lab.com"
+[project]
+name = "dimutex"
+authors = [
+    {name = "Gram", email = "gram@orsinium.dev"},
+]
+license = {file = "LICENSE"}
+readme = "README.md"
 requires-python = ">=3.6"
-classifiers = ["Private :: Do Not Upload"]
-requires = [
+dynamic = ["version", "description"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python",
+    "Topic :: Software Development",
+]
+keywords = [
+    "mutex",
+    "google",
+    "google cloud",
+    "gcs",
+    "gcp",
+    "microservices",
+]
+dependencies = [
     "aiohttp",
     "gcloud-aio-auth",
 ]
 
-[tool.flit.metadata.requires-extra]
+[project.optional-dependencies]
 test = [
     "pytest>=6.2.0",
     "pytest-asyncio",
@@ -26,7 +43,6 @@ lint = [
     "isort",
     "mypy",
     "unify",
-    "yamllint",
 ]
 
 [tool.isort]
