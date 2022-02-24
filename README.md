@@ -32,13 +32,18 @@ import dimutex
 
 async def do_something():
     lock = dimutex.GCS(bucket='bucket-name', name='lock-name')
+    # context manager makes sure to close aiohttp session
     async with lock:
         try:
             await lock.acquire()
         except dimutex.AlreadyAcquiredError:
             return 'already acquired'
         try:
-            ... # do something with the shared resuource
+            # do something with the shared resource
+            ...
+            # update expiration if you need more time
+            await lock.refresh()
+            ...
         finally:
             await lock.release()
 ```
